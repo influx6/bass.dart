@@ -287,7 +287,7 @@ class BassNS{
 			this.scanned.update(i,{});
 			f = this.scanned.get(i);
 			e.maps.forEach((k,v){
-				v = v.toString().replaceAll(BassUtil.escapeSeq,'');
+				v = v.toString().replaceAll(BassUtil.escapeSeq,' ');
 				if(!BassUtil.rules.hasMatch(k)) return f[k] = v;
 				rule = BassUtil.rules.firstMatch(k).group(1);
 				if(!this.extensions.hasRule(rule)) return null;
@@ -335,7 +335,7 @@ class BassNS{
 class BassUtil{
 		static RegExp rules = new RegExp(r'^@([\w\W]+)');
 		static RegExp varrule = new RegExp(r'^#([\w\W]+)');
-		static RegExp escapeSeq = new RegExp(r'([\t|\n|\s]+)');
+		static RegExp escapeSeq = new RegExp(r'([\t|\n]+)');
 		static RegExp validkeys = new RegExp(r'^([^\w\d&]+)$|^&$');
 }
 
