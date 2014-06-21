@@ -1,7 +1,7 @@
 #Bass
 
 ##Description
-	Inspired by AbsurdJS(http://absurdjs.com/) towards building a css-proprocessor using the native core language itself and with dartlang sophisticated constructs and limitless possiblilites arises when we rather than create limited pre-processor we use a the built-in functionality of dartlang and a few constructs that simplify life,that is what Bass provides,allowing leveraging dartlang in such a way,Bass goes beyond just css as it provides a basic rule based system that depending on implementation can drastically change,such as making it into an html pre-processor although for now such is not planned.
+	Inspired by AbsurdJS(http://absurdjs.com/) towards building a css-preprocessor using the native core language itself and with dartlang sophisticated constructs and limitless possiblilites arises when we rather than create limited pre-processor we use the built-in functionality of dartlang and a few constructs that simplify life,that is what Bass provides,allowing you to leverag dartlang's in such a way,Bass goes beyond just css as it provides a basic rule based system that depending on implementation can drastically change,such as making it into an html pre-processor although for now such is not planned.
 
 ##Examples:
 	'''
@@ -57,6 +57,12 @@
 			BassNS.sel
 			the core of style definition,allowing the definition of a style for a psecific selector,
 			the & symbol like in less will be replaced with the value of the selector
+
+			Rules:
+			@mix will mix in the value styles given to it
+			@mixvar allows for mixin in variables values passed in to mixVar,very useful for multiple assignment or just use standard dart varaiables
+
+			Also these rules are actually added by default and the rules can be extended to include more functionality and varieties,enjoy
 		*/
 		box.sel('body',{
 			'@mix': 'flatwidth,flatfont',
