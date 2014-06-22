@@ -15,6 +15,11 @@
 		*/
 		var box = Bass.NS('dashboard-ui');
 
+		/*
+		 Bass.css();
+		 returns an instance of a BassFormatter that basically takes the generated map when Bass.compile is called and then converts it into proper css notation
+		*/
+		var css = box.css();
 
 		/*
 			BassNS.mixFn(String,Function)
@@ -49,9 +54,15 @@
 
 		/*
 			BassNS.bind,BassNS.unbind,BassNS.bindOnce,BassNS.unbindOnce
-			allows multiple listenings for when a new css map is generated while the compile Function is called
+			allows multiple listenings for when a new css map is generated while the compile Function is called.
+			This returns a processed map
 		*/
 		box.bind(Funcs.tag('scanMap:'));
+		
+		/*
+			BaseFormatter.bind just like above binds into the formatter calback system,this returns a string of css
+		*/
+		css.bind(Funcs.tag('scanMap:'));
 
 		/*
 			BassNS.sel
