@@ -8,6 +8,7 @@ void main(){
 	// Bass.debug.enable;
 
 	var box = Bass.NS('dashboard-ui');
+	var css = box.css();
 
 	box.mixFn('relWidth',(n,b){ return n + b / 100; });
 	box.composeFn('%width',['%','relWidth'],2);
@@ -22,7 +23,7 @@ void main(){
 
 	box.mixVar('line-height','300px');
 
-	box.bind(Funcs.tag('scanMap:'));
+	css.bind(Funcs.tag('scanMap:'));
 
 	box.sel('body',{
 		'@mix': 'flatwidth,flatfont',

@@ -300,6 +300,10 @@ class BassNS{
 		});
 	}
 
+	BassFormatter css(){
+		return BassFormatter.css(this);
+	}
+
 	dynamic compile(){
 		this.scan((n) => this.procDist.emit(n));
 	}
@@ -337,6 +341,47 @@ class BassUtil{
 		static RegExp varrule = new RegExp(r'^#([\w\W]+)');
 		static RegExp escapeSeq = new RegExp(r'([\t|\n]+)');
 		static RegExp validkeys = new RegExp(r'^([^\w\d&]+)$|^&$');
+}
+
+class BassFormatter{
+	BassNS ns;
+	Distributor chain;
+	Function processor,_hidden;
+
+	static create(fn,b) => new BassFormatter(fn,b);
+
+	static css(BassNs ns){
+		return BassFormatter.create((m){
+			var pretty = Funcs.prettyPrint(m,null,null,'!|').split('!|');
+			pretty[0] = '';
+			pretty[pretty.length - 1] = '';
+			return pretty.join('').replaceAll('",','";')
+			.replaceAll('"','').replaceAll('},','}')
+			.replaceAll(': {','{');
+		},ns);	
+	}
+
+	BassFormatter(this.processor,this.ns){
+		this.chain = Distributor.create('bassformatter');
+		this.bindBass();
+	}
+
+	void bindBass(){
+		this.ns.bind(this._hidden = (m) => this.chain.emit(this.processor(m)));
+	}
+
+	void unbindBass(){
+		this.ns.unbind(this._hidden);
+	}
+
+	void bind(Function n) => this.chain.on(n);
+	void bindOnce(Function n) => this.chain.once(n);
+	void unbind(Function n) => this.chain.off(n);
+	void unbindOnce(Function n) => this.chain.offOnce(n);
+	void bindWhenDone(Function n) => this.chain.whenDone(n);
+	void unbindWhenDone(Function n) => this.chain.offWhenDone(n);
+	void clearListeners() => this.chain.free();
+
 }
 
 class Bass{
