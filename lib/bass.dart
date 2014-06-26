@@ -71,6 +71,7 @@ class Style{
 	Style(this.selector,this.maps){
 		this.rules = new MapDecorator.use(this.maps);
 	}
+    
 	void destroy(){
 		this.selector = null;
 		this.rules.clear();
@@ -88,7 +89,21 @@ class StyleSet{
 	}
 
 	void style(String n,Map m){
-		this.styles.update(n,Style.create(n,m));
+              if(this.styles.has(n)){
+                var fc = this.styles.get(n);
+                m.forEach((k,v){
+                  if(BassUtil.rules.hasMatch(k)){
+                    var fx = fc.rules.get(k);
+                    var mx = fx.split(',');
+                    mx.addAll(v.split(','));
+                    fc.rules.update(k,mx.join(','));
+                  }else{
+                    fc.rules.update(k,v);
+                  }
+                });
+                return null;
+              }
+              return this.styles.update(n,Style.create(n,m));
 	}
 
 
@@ -183,18 +198,9 @@ class BassNS{
 			return mix;
 		});
 
-		this.extensions.rule('mixvar',(val,bns){
-			var mix = {},prop,vard,m;
-			val.split(',').forEach((f){
-				m = f.split(':');
-				prop = Enums.first(m);
-				vard = Enums.second(m);
-				if(m.length < 2 || m.length > 2 || !BassUtil.varrule.hasMatch(vard)) return null;
-				mix[prop.toString()] = this.vars(Enums.second(vard.split('#')));
-			});
-			return mix;
+		this.seltypes.addRule('mixins',new RegExp(r'^@([\w\W]+)'),(s,d){
+			return s;
 		});
-
 
 		this.seltypes.addRule('state',new RegExp(r'^:\S([\w\W]+)'),(s,d){
 			return [s,d].join('');
@@ -243,9 +249,9 @@ class BassNS{
 		var tmp = StyleSet.create();
 		this.styleSelector(tmp,selector,rules,(s,c){
 			s.styles.onAll((k,v){
-				if(this.styles.hasStyle(k)) 
-					return this.styles.get(k).rules.updateAll(v.rules);
-					this.styles.style(k,v.maps);
+				/*if(this.styles.hasStyle(k)) */
+				/*	return this.styles.get(k).rules.updateAll(v.rules);*/
+                                this.styles.style(k,v.maps);
 			});
 			tmp.destroy();
 		});
@@ -262,11 +268,11 @@ class BassNS{
 				this.seltypes.process(i,(r){
 					this.sel(r['fn'](selector,i),e);
 				},(r){
-					this.sel(i,e);
+                                    this.sel(i,e);
 				});
 				return fn(null);
 			}
-
+                        
 			cleand[i] = e;
 			return fn(null);
 		},(_,err){

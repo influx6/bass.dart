@@ -5,7 +5,7 @@ import 'package:bass/bass.dart';
 
 void main(){
 
-	Bass.debug.enable;
+	/*Bass.debug.enable;*/
 
 	var box = Bass.NS('dashboard-ui');
 	var css = box.css();
@@ -17,13 +17,16 @@ void main(){
 		'width':'100%'
 	});
 
+	box.mix('fluidHeight',{
+		'height-fluid':'100%'
+	});
+
 	box.mix('flatfont',{
 		'font-size':'100%'
 	});
 
 	box.mixVar('line-height','300px');
 
-	css.bind(Funcs.tag('scanMap:'));
 
 	box.sel('body',{
 		'@mix': 'flatwidth,flatfont',
@@ -31,7 +34,7 @@ void main(){
 		'height': box.fn('%width',[10,10]),
 		'h1':{
 			'@mix': 'flatwidth',
-			'@mixvar': 'line-height:#line-height,chicken:#line-height',
+			'@mixvar': 'line-height:#line-height|chicken:#line-height',
 		},
 		":hover":{
 			'width':'200px'
@@ -55,15 +58,22 @@ void main(){
 	});
 
 	box.compile();
+	css.bind(Funcs.tag('scanMap:'));
 	
 	box.updateSel('body',{
+                '@mix':'fluidHeight',
+                '@include':{
+                  'background':'white',
+                  'rotate':'90deg'
+                },
+
 		'& *':{
 			'width':'100px',
-			'dd':'40px'
+			/*'dd':'40px'*/
 		},
 		'& div[type="checkbox"]':{
 			'color': 'red'
-		}
+		},
 	});
 
 	box.compile();

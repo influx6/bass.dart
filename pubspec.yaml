@@ -1,5 +1,5 @@
 name: bass
-version: 0.0.6
+version: 0.0.7
 author: Alexander Adeniyin Ewetumo <trinoxf@gmail.com>
 homepage: http://github.com/influx6/bass.dart
 description: a derivative css processor based on dart syntax (following the AbsurdJS style) 
