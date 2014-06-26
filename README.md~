@@ -33,31 +33,6 @@
 		 	allows the composition of multiple functions already existing under another namespace
 		*/
 		box.composeFn('%width',['%','relWidth'],2);
-              
-                /*
-                   Note:
-                   mixins are evaluated immediately,due to the nature that they could cause an unfortunately
-                   looping for example
-                   if we had  2 mixins: 
-                    
-                      box.mix('bugger',{
-                              '@mix':'foul'
-                      });
-
-                      box.mix('foul',{
-                              '@mix':'bugger'
-                      });
-
-                  if these are lazy evaluated,we would endup in an endless loop of evaluating mixins,even if
-                  either bugger or foul are called within deeper mixins it will result in these error which
-                  would cause a stackoverflow ,to mitigate these mixins are immediately evaluated in the order
-                  they are added to ensure to negate such possiblities and also improve scanning,as if a mixin
-                  legitimately includes another mixins as far as the mixin existed before this current mixin
-                  the mixin will be evaluated correctly.
-
-                  So ensure to add mixins sequentially in the order of use if you plan on mixin other mixins 
-                  into other mixins
-                */
 
 		/*
 			BassNS.mix(String,Map)
@@ -154,4 +129,4 @@
 	'''
 	
 ##ThanksGiving
-To God alone be all glory,praise and thanks for both this and many more,amen!
+To God alone be all glory,praise and thanks!

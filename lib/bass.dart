@@ -169,6 +169,11 @@ class BassNS{
 		this.procDist = new Distributor('${this.ns}-Distributor');
 
 		this.strictKeys.switchOn();
+		
+		this.extensions.rule('include',(val,bns){
+                  return Valids.isMap(val) ? val : {};
+		});
+
 		this.extensions.rule('mix',(val,bns){
 			var m = val.split(','),mix = {};
 			m.forEach((f){
@@ -213,6 +218,10 @@ class BassNS{
 		this.mixFn('px',(v) => this.fn('format',[v,'px']));
 		this.mixFn('rem',(v) => this.fn('format',[v,'rem']));
 		this.mixFn('em',(v) => this.fn('format',[v,'em']));
+		
+		this.mix('fullWidth',{ 'width':'100%'});
+		this.mix('fullHeight',{ 'height':'100%'});
+		this.mix('fullSize',{ '@mix':'fullWidth,fullHeight'});
 	}
 
 	void destroy(){
@@ -236,7 +245,7 @@ class BassNS{
 			s.styles.onAll((k,v){
 				if(this.styles.hasStyle(k)) 
 					return this.styles.get(k).rules.updateAll(v.rules);
-					this.stles.style(k,v.maps);
+					this.styles.style(k,v.maps);
 			});
 			tmp.destroy();
 		});
@@ -279,30 +288,86 @@ class BassNS{
 	void bindWhenDone(Function n) => this.procDist.whenDone(n);
 	void unbindWhenDone(Function n) => this.procDist.offWhenDone(n);
 	void clearListeners() => this.procDist.free();
+        
+        void _processRules(Map n,Map f){
+            var rule;
+            n.forEach((k,v){
+              v = v.toString().replaceAll(BassUtil.escapeSeq,' ');
+              if(!BassUtil.rules.hasMatch(k)) return f[k] = v;
+              rule = BassUtil.rules.firstMatch(k).group(1);
+              if(!this.extensions.hasRule(rule)) return null;
+              var res = Funcs.switchUnless(this.extensions.get(rule).process(v,this),{});
+              return  f.addAll(res);
+            });
+        }
+        
+        void _checkMixes(Map m,[Function s,Function f]){
+          Enums.eachAsync(this.extensions.rules.core,(e,i,o,fn){
+              var attach = ['@',i].join('');
+              if(m.containsKey(attach)) return fn(attach);
+              return fn(null);
+          },(_,err){
+             if(Valids.exist(err)) return (Valids.exist(s) && s(m,err));
+             return (Valids.exist(f) && f(m,err));
+          });
+        }
+
+        void _processMixables(String id,Map m,Function s,Function f,List proc){
+          var n = new Map.from(m);
+          this._checkMixes(m,(v,a){
+             proc.add(v[a]);
+             n.remove(a);
+             this._processRules(m,n);
+             return s(n,a);
+          },(v,a){
+             proc.add(v[a]);
+            return f(v,a);
+          });
+        }
+
+	void _mixrun(String id,Map m,List g){
+          this._processMixables(id,m,(v,a){
+              this._checkMixes(v,(b,f){
+                 var mixd = f.split('@')[1];
+                 if(g.contains(b[f])) 
+                    throw "cant recall mixin else endless loop occurs!";
+                this._mixrun(id,v,g);
+              },(b,f){
+                return this.mixstyles.style(id,v);
+              });
+          },(v,a){
+              return this.mixstyles.style(id,v);
+          },g);
+	}
+
+        void mix(String id,Map m){
+          this._mixrun(id,m,[]);
+        }
 
 	void scan(Function m){
 		var f,rule;
-		this.scanned.clear();
+                var scanned = MapDecorator.create();
 		Enums.eachAsync(this.styles.styles.core,(e,i,o,fn){
-			this.scanned.update(i,{});
-			f = this.scanned.get(i);
-			e.maps.forEach((k,v){
-				v = v.toString().replaceAll(BassUtil.escapeSeq,' ');
-				if(!BassUtil.rules.hasMatch(k)) return f[k] = v;
-				rule = BassUtil.rules.firstMatch(k).group(1);
-				if(!this.extensions.hasRule(rule)) return null;
-				return  f.addAll(Funcs.switchUnless(this.extensions.get(rule).process(v,this),{}));
-			});
-			fn(null);
+                  scanned.update(i,{});
+                  f = scanned.get(i);
+                  this._processRules(e.maps,f);
+                  fn(null);
 		},(_,err){
-			if(err) throw err;
-			return m(new Map.from(this.scanned.core));
+                    if(Valids.exist(err)) throw err;
+                    /*this._checkAllMixes(scanned,(v){*/
+                    /*  print('we got probs $v');*/
+                    /*},(v){*/
+                      this.scanned.clear();
+                      this.scanned.addAll(scanned);
+                      return m(new Map.from(scanned.core));
+                    /*});*/
 		});
 	}
 
 	BassFormatter css(){
 		return BassFormatter.css(this);
 	}
+        
 
 	dynamic compile(){
 		this.scan((n) => this.procDist.emit(n));
@@ -322,13 +387,10 @@ class BassNS{
 		if(this.fnMixes.has(id)) return null;
 		this.fnMixes.add(id,m);
 	}
+        
 
-	void mix(String id,Map m){
-		return this.mixstyles.style(id,m);
-	}
-
-    Function _compose(List<String> ops,[int x]){
-    	var fns = Enums.map(ops,(e,i,o){
+        Function _compose(List<String> ops,[int x]){
+          var fns = Enums.map(ops,(e,i,o){
     		if(this.fnMixes.has(e)) return this.fnMixes.get(e);
     		return throw "$e does not exist in Mixins!";
 		});

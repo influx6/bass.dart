@@ -5,7 +5,7 @@ import 'package:bass/bass.dart';
 
 void main(){
 
-	// Bass.debug.enable;
+	Bass.debug.enable;
 
 	var box = Bass.NS('dashboard-ui');
 	var css = box.css();
