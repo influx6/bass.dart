@@ -69,11 +69,14 @@ void main(){
 
 		'& *':{
 			'width':'100px',
-			/*'dd':'40px'*/
+			'dd':'40px'
 		},
 		'& div[type="checkbox"]':{
 			'color': 'red'
 		},
+              'h1':{
+                '@mix':'flatfont'
+              }
 	});
 
 	box.compile();
