@@ -361,7 +361,7 @@ class BassNS{
         bool get isDirty => !!this._dirty;
 
 	void scan(Function m){
-                if(!this._dirty) return m(new Map.from(this._cached));
+                if(!this._dirty && Valids.exist(this._cached)) return m(new Map.from(this._cached));
 		var f,rule;
                 var scanned = MapDecorator.create();
 		Enums.eachAsync(this.styles.styles.core,(e,i,o,fn){
