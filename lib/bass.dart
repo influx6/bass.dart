@@ -170,6 +170,8 @@ class BassNS{
 	StyleSet styles;
 	Switch strictKeys;
 	String ns;
+        Map _cached;
+        bool _dirty = false;
 
 	static create(s,n) => new BassNS(s,n);
 
@@ -249,6 +251,7 @@ class BassNS{
 	Style retrieveStyle(String selector) => this.styles.get(selector);
 
 	void updateSel(String selector,Map rules){
+                this._dirty = true;
 		if(!this.styles.hasStyle(selector)) return this.sel(selector,rules);
 		var tmp = StyleSet.create();
 		this.styleSelector(tmp,selector,rules,(s,c){
@@ -264,6 +267,7 @@ class BassNS{
 	void sel(String selector,Map rules) => this.styleSelector(this.styles,selector,rules);
 
 	void styleSelector(StyleSet style,String selector,Map rules,[Function done]){
+                this._dirty = true;
 		Bass.debug.log('BassNS selMethod',{'selector': selector,'rules':rules});
 		var nws,cleand = {};
 		Enums.eachAsync(rules,(e,i,o,fn){
@@ -353,8 +357,11 @@ class BassNS{
         void mix(String id,Map m){
           this._mixrun(id,m,[]);
         }
+  
+        bool get isDirty => !!this._dirty;
 
 	void scan(Function m){
+                if(!this._dirty) return m(new Map.from(this._cached));
 		var f,rule;
                 var scanned = MapDecorator.create();
 		Enums.eachAsync(this.styles.styles.core,(e,i,o,fn){
@@ -364,13 +371,11 @@ class BassNS{
                   fn(null);
 		},(_,err){
                     if(Valids.exist(err)) throw err;
-                    /*this._checkAllMixes(scanned,(v){*/
-                    /*  print('we got probs $v');*/
-                    /*},(v){*/
-                      this.scanned.clear();
-                      this.scanned.addAll(scanned);
-                      return m(new Map.from(scanned.core));
-                    /*});*/
+                    this._dirty = false;
+                    this._cached = new Map.from(scanned.core);
+                    this.scanned.clear();
+                    this.scanned.addAll(scanned);
+                    return m(new Map.from(scanned.core));
 		});
 	}
 

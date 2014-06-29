@@ -80,4 +80,5 @@ void main(){
 	});
 
 	box.compile();
+	box.compile();
 }
