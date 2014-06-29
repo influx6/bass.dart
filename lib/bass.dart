@@ -224,7 +224,11 @@ class BassNS{
 		this.mixFn('px',(v) => this.fn('format',[v,'px']));
 		this.mixFn('rem',(v) => this.fn('format',[v,'rem']));
 		this.mixFn('em',(v) => this.fn('format',[v,'em']));
+
+                this.mixFn('percentage',(v) => 100*v);
 		
+                this.composeFn('to%',['%','percentage']);
+
 		this.mix('fullWidth',{ 'width':'100%'});
 		this.mix('fullHeight',{ 'height':'100%'});
 		this.mix('fullSize',{ '@mix':'fullWidth,fullHeight'});
