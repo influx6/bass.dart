@@ -7,31 +7,30 @@ void main(){
 
 	/*Bass.debug.enable;*/
 
-	var box = Bass.NS('dashboard-ui');
-	var css = box.css();
+	var box = CSS.create();
 
-	box.mixFn('relWidth',(n,b){ return n + b / 100; });
-	box.composeFn('%width',['%','relWidth'],2);
+	box.ns.mixFn('relWidth',(n,b){ return n + b / 100; });
+	box.ns.composeFn('%width',['%','relWidth'],2);
 
-	box.mix('flatwidth',{
+	box.ns.mix('flatwidth',{
 		'width':'100%'
 	});
 
-	box.mix('fluidHeight',{
+	box.ns.mix('fluidHeight',{
 		'height-fluid':'100%'
 	});
 
-	box.mix('flatfont',{
+	box.ns.mix('flatfont',{
 		'font-size':'100%'
 	});
 
-	box.mixVar('line-height','300px');
+	box.ns.mixVar('line-height','300px');
 
 
-	box.sel('body',{
+	box.ns.sel('body',{
 		'@mix': 'flatwidth,flatfont',
-		'line-height': box.vars('line-height'),
-		'height': box.fn('%width',[10,10]),
+		'line-height': box.ns.vars('line-height'),
+		'height': box.ns.fn('%width',[10,10]),
 		'h1':{
 			'@mix': 'flatwidth',
 			'@mixvar': 'line-height:#line-height|chicken:#line-height',
@@ -57,10 +56,12 @@ void main(){
 		}
 	});
 
-	box.compile();
-	css.bind(Funcs.tag('scanMap:'));
+	box.f.bind(Funcs.tag('scanMap:'));
+
+	box.ns.compile();
+        
 	
-	box.updateSel('body',{
+	box.ns.updateSel('body',{
                 '@mix':'fluidHeight',
                 '@include':{
                   'background':'white',
@@ -79,6 +80,6 @@ void main(){
               }
 	});
 
-	box.compile();
-	box.compile();
+	box.ns.compile();
+	box.ns.compile();
 }

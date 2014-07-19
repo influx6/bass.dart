@@ -2,25 +2,6 @@ library bass;
 
 import 'package:hub/hub.dart';
 
-/*
-	Rules are simple, you define a markup type that follows the basic standard in a css declaration
-	ie:
-		"@rule":"rule_value_to_process"
-	eg:	
-		.flatwidth{
-			width: 100%;
-		}
-
-		.flatheight{
-			height: 100%;
-		}
-
-		body{
-			"@mixin":".flatwidth"
-			"@mixin":".flatheight"
-		}
-
-*/
 class Rule{
 	String method;
 	Function ruleProcessor;
@@ -60,6 +41,12 @@ class RuleSet{
 		this.rules.onAll((k,v) => v.destroy());
 		this.rules.clear();
 	}
+
+        dynamic clone(){
+            var a = RuleSet.create();
+            a.rules.updateAll(this.rules);
+            return a;
+        }
 }
 
 class Style{
@@ -94,6 +81,7 @@ class StyleSet{
                 m.forEach((k,v){
                   if(BassUtil.rules.hasMatch(k)){
                     var fx = fc.rules.get(k);
+                    if(Valids.notExist(fx)) return fc.rules.update(k,v);
                     var mx = fx.split(',');
                     mx.addAll(v.split(','));
                     fc.rules.update(k,mx.join(','));
@@ -121,7 +109,15 @@ class StyleSet{
 		this.styles.onAll((k,v) => v.destroy());
 		this.styles.clear();
 	}
+
+        dynamic clone(){
+            var a = StyleSet.create();
+            a.styles.updateAll(this.rules);
+            return a;
+        }
 }
+
+typedef Map SelectorFn(i,e,m);
 
 class SelectorRule{
 	MapDecorator rules;
@@ -131,7 +127,7 @@ class SelectorRule{
 		this.rules = MapDecorator.create();
 	}
 
-	void addRule(String ns,RegExp r,Function m){
+	void addRule(String ns,RegExp r,SelectorFn m){
 		if(this.rules.has(ns)) return null;
 		this.rules.add(ns,{'r':r,'fn':m});
 	}
@@ -157,6 +153,12 @@ class SelectorRule{
 		this.rules.onAll((v,k) => k.clear());
 		this.rules.clear();
 	}
+
+        dynamic clone(){
+            var a = SelectorRule.create();
+            a.rules.updateAll(this.rules);
+            return a;
+        }
 }
 
 class BassNS{
@@ -188,53 +190,54 @@ class BassNS{
 		this.strictKeys.switchOn();
 		
 		this.extensions.rule('include',(val,bns){
-                  return Valids.isMap(val) ? val : {};
+                  if(!bns.mixstyles.hasStyle(val)) return null;
+                  return Enums.flatten(bns.mixstyles.getMaps(val));
 		});
 
 		this.extensions.rule('mix',(val,bns){
 			var m = val.split(','),mix = {};
 			m.forEach((f){
-				if(!bns.mixstyles.hasStyle(f)) return null;
-				mix.addAll(bns.mixstyles.getMaps(f));
+				if(!bns.hasMix(f)) return null;
+				mix.addAll(bns.getMix(f));
 			});
 			return mix;
 		});
 
-		this.seltypes.addRule('mixins',new RegExp(r'^@([\w\W]+)'),(s,d){
-			return s;
+		this.seltypes.addRule('mixins',new RegExp(r'^@([\w\W]+)'),(s,d,e){
+                      var map = {},id = Hub.randomString(4);
+                      this.mix(id,e);
+                      map[d] = id;
+                      return {'sel': s,'map':map };
 		});
 
-		this.seltypes.addRule('state',new RegExp(r'^:\S([\w\W]+)'),(s,d){
-			return [s,d].join('');
+		this.seltypes.addRule('mixins',new RegExp(r'^@([\w\W]+)'),(s,d,e){
+                      return {'sel': s };
 		});
 
-		this.seltypes.addRule('descendant',new RegExp(r'^>([\w\W]+)'),(s,d){
-			return [s,'>',d.replaceAll('>','')].join(' ');
+		this.seltypes.addRule('state',new RegExp(r'^:\S([\w\W]+)'),(s,d,e){
+                      return {'sel': [s,d].join('')};
 		});
 
-		this.seltypes.addRule('space-descendants',new RegExp(r'^\s?\w+'),(s,d){
-			return [s,d].join(' ');
+		this.seltypes.addRule('descendant',new RegExp(r'^>([\w\W]+)'),(s,d,e){
+			return { 'sel': [s,'>',d.replaceAll('>','')].join(' ')};
 		});
 
-		this.seltypes.addRule('parent-descendant',new RegExp(r'&\s?([\w\W]+)'),(s,d){
-			return d.replaceAll('&',s);
+		this.seltypes.addRule('space-descendants',new RegExp(r'^\s?\w+'),(s,d,e){
+			return { 'sel':[s,d].join(' ') };
 		});
 
-		this.mixFn('identity',Funcs.identity);
-		this.mixFn('format',(val,format) => [val,format].join(''));
-		this.mixFn('%',(v) => this.fn('format',[v,'%']));
-		this.mixFn('px',(v) => this.fn('format',[v,'px']));
-		this.mixFn('rem',(v) => this.fn('format',[v,'rem']));
-		this.mixFn('em',(v) => this.fn('format',[v,'em']));
+		this.seltypes.addRule('parent-descendant',new RegExp(r'&\s?([\w\W]+)'),(s,d,e){
+			return { 'sel': d.replaceAll('&',s) };
+		});
 
-                this.mixFn('percentage',(v) => 100*v);
-		
-                this.composeFn('to%',['%','percentage']);
-
-		this.mix('fullWidth',{ 'width':'100%'});
-		this.mix('fullHeight',{ 'height':'100%'});
-		this.mix('fullSize',{ '@mix':'fullWidth,fullHeight'});
 	}
+
+        dynamic get rules => this.extensions;
+        dynamic get addRule => this.extensions.rule;
+        dynamic get addSelector => this.seltypes.addRule;
+
+        bool hasMix(String n) => this.mixstyles.hasStyle(n);
+        dynamic getMix(String n) => this.mixstyles.getMaps(n);
 
 	void destroy(){
 		this.varbars.clear();
@@ -274,7 +277,10 @@ class BassNS{
 			if(this.strictKeys.on() && BassUtil.validkeys.hasMatch(i)) return  fn(null);
 			if(e is Map){
 				this.seltypes.process(i,(r){
-					this.sel(r['fn'](selector,i),e);
+					var res = r['fn'](selector,i,e);
+                                        if(res is! Map) throw "All selector rules must return a map";
+                                        if(!res.containsKey('map')) res['map'] = e;
+					this.sel(res['sel'],res['map']);
 				},(r){
                                     this.sel(i,e);
 				});
@@ -379,11 +385,6 @@ class BassNS{
 		});
 	}
 
-	BassFormatter css(){
-		return BassFormatter.css(this);
-	}
-        
-
 	dynamic compile(){
 		this.scan((n) => this.procDist.emit(n));
 	}
@@ -425,31 +426,30 @@ class BassFormatter{
 	Distributor chain;
 	Function processor,_hidden;
 
-	static create(fn,b) => new BassFormatter(fn,b);
+	static create(fn,[b]) => new BassFormatter(fn,b);
 
-	static css(BassNs ns){
-		return BassFormatter.create((m){
-			var pretty = Funcs.prettyPrint(m,null,null,'!|').split('!|');
-			pretty[0] = '';
-			pretty[pretty.length - 1] = '';
-			return pretty.join('').replaceAll('",','";')
-			.replaceAll('"','').replaceAll('},','}')
-			.replaceAll(': {','{');
-		},ns);	
-	}
-
-	BassFormatter(this.processor,this.ns){
+	BassFormatter(this.processor,[BassNS n]){
 		this.chain = Distributor.create('bassformatter');
-		this.bindBass();
+                this._hidden = (m){ 
+                  var res = this.processor(m,this); 
+                  return Valids.exist(res) ? this.chain.emit(res) : null;
+                };
+                if(Valids.exist(n)) this.use(n);
 	}
 
 	void bindBass(){
-		this.ns.bind(this._hidden = (m) => this.chain.emit(this.processor(m)));
+		this.ns.bind(this._hidden);
 	}
 
 	void unbindBass(){
 		this.ns.unbind(this._hidden);
 	}
+
+        void use(BassNS ns){
+          if(Valids.exist(this.ns)) this.unbindBass();
+          this.ns = ns;
+          this.bindBass();
+        }
 
 	void bind(Function n) => this.chain.on(n);
 	void bindOnce(Function n) => this.chain.once(n);
@@ -459,6 +459,229 @@ class BassFormatter{
 	void unbindWhenDone(Function n) => this.chain.offWhenDone(n);
 	void clearListeners() => this.chain.free();
 
+}
+
+class TypeAbstract{
+  BassFormatter f;
+  BassNS ns;
+
+  TypeAbstract(n){
+    this.ns = Valids.exist(n) ? n : BassNS.create('cssProc',Bass.R.clone());
+  }
+
+  void compile() => this.ns.compile();
+  void bind(Function n) => this.f.bind(n);
+  void bindOnce(Function n) => this.f.bindOnce(n);
+  void unbind(Function n) => this.f.unbind(n);
+  void unbindOnce(Function n) => this.f.unbindOnce(n);
+  void bindWhenDone(Function n) => this.f.bindWhenDone(n);
+  void unbindWhenDone(Function n) => this.f.unbindWhenDone(n);
+  void clearListeners() => this.f.clearListeners();
+}
+
+class CSS extends TypeAbstract{
+  BassFormatter f;
+
+  static create([n]) => new CSS(n);
+
+  CSS([n]): super(n){
+    this.f = BassFormatter.create((m,bf){
+      var pretty = Funcs.prettyPrint(m,null,null,'!|').split('!|');
+      pretty[0] = '';
+      pretty[pretty.length - 1] = '';
+      return pretty.join('').replaceAll('",','";')
+      .replaceAll('"','').replaceAll('},','}')
+      .replaceAll(': {','{');
+    },this.ns);
+
+    this.ns.mixFn('identity',Funcs.identity);
+    this.ns.mixFn('format',(val,format) => [val,format].join(''));
+    this.ns.mixFn('%',(v) => this.ns.fn('format',[v,'%']));
+    this.ns.mixFn('px',(v) => this.ns.fn('format',[v,'px']));
+    this.ns.mixFn('rem',(v) => this.ns.fn('format',[v,'rem']));
+    this.ns.mixFn('em',(v) => this.ns.fn('format',[v,'em']));
+
+    this.ns.mixFn('percentage',(v) => 100*v);
+    
+    this.ns.composeFn('to%',['%','percentage']);
+
+    this.ns.mix('fullWidth',{ 'width':'100%'});
+    this.ns.mix('fullHeight',{ 'height':'100%'});
+    this.ns.mix('fullSize',{ '@mix':'fullWidth,fullHeight'});
+  }
+
+  void css(String id,Map m){
+    this.ns.sel(id,m);
+  }
+}
+
+class SvgUtil{
+
+  static RegExp ntag = new RegExp(r'([\w\W]+)#([\d]+)');
+  static RegExp attrReg = new RegExp(r'#attr');
+  static RegExp contentReg = new RegExp(r'#content');
+  static RegExp singleSpace = new RegExp(r'\s');
+  static RegExp multipleSpace = new RegExp(r'\s+');
+
+  static String makeTag(String t){
+    return "<$t #attr>"+'#content'+"</$t>";
+  }
+
+  static String mapAttr(Map m){
+    var buffer = new StringBuffer();
+    m.forEach((k,v){
+      buffer.write(' ');
+      buffer.write("$k=${Funcs.doubleQuote(v)}");
+      buffer.write(' ');
+    });
+    return buffer.toString();
+  }
+}
+
+class SVG extends TypeAbstract{
+  BassFormatter f;
+
+  static create([n]) => new SVG(n);
+  SVG([ns]):super(ns){
+
+    var tree = MapDecorator.create();
+    var build = MapDecorator.create();
+    var vals = MapDecorator.create();
+    var srcbuffer = new StringBuffer();
+    var srcMap = {};
+
+    var makeOutput = (){
+        return {
+          'buffer': srcbuffer.toString(),
+          'map': new Map.from(srcMap)
+        };
+    };
+
+    var processor = (key,tag,tree){
+        var g,attr;
+        if(SvgUtil.ntag.hasMatch(tag)){
+          g = SvgUtil.ntag.allMatches(tag);
+          g.forEach((f) => tag = tag.replaceAll(SvgUtil.ntag,f.group(1)));
+        }
+
+        attr = SvgUtil.mapAttr(tree);
+        return SvgUtil.makeTag(tag).
+          replaceAll(SvgUtil.attrReg,attr).
+          replaceAll(SvgUtil.contentReg,"#{$key}");
+    };
+
+    var patcher = (tree,val){
+        var key = tree.join(' ');
+        var child = Enums.yankLast(tree);
+        return processor(key,child,val);
+    };
+
+    var combinator = (item,trees,done,vals){
+        var spl,child,parent,res;
+        spl = item.split(SvgUtil.singleSpace);
+        child = patcher(spl,trees.get(item));
+        if(!spl.isEmpty){
+          var key = spl.join(' ');
+          var data = patcher(spl,trees.get(key));
+          done.get(key).add(item);
+          vals.update(key,data);
+        }
+        done.add(item,[]);
+        vals.update(item,child);
+    };
+
+    this.f = BassFormatter.create((m,bf){
+      tree.storage = m;
+  
+      var keys,reverse,sorted;
+      keys = m.keys.toList();
+      sorted = Enums.heapSort(keys,(m,n) => m.length < n.length);
+      reverse = Enums.heapSort(keys,(m,n) => m.length > n.length);
+
+      build.clear();
+      vals.clear();
+      srcbuffer.clear();
+      srcMap.clear();
+
+      Enums.list2Map(m.keys.toList(),(t){
+
+        while(!sorted.isEmpty){
+          var cur = Enums.yankFirst(sorted);
+          combinator(cur,tree,build,vals);
+        }
+
+        while(!reverse.isEmpty){
+          var cur = Enums.yankFirst(reverse);
+          var val = vals.get(cur);
+          var bd = build.get(cur);
+          var rv = [''];
+
+          if(bd.isEmpty){
+            build.destroy(cur);
+            vals.update(cur,vals.get(cur).replaceAll("#{$cur}",rv.join('\n')));
+            continue;
+          }
+
+          bd.forEach((f){ 
+            rv.add(vals.get(f)); 
+          });
+          var patch = val.replaceAll("#{$cur}",rv.join('\n'));
+          vals.update(cur,patch);
+          build.destroy(cur);
+        }
+
+        t.keys.forEach((v){
+          srcMap[v] = vals.get(v);
+          srcbuffer.write('\n');
+          srcbuffer.write(vals.get(v));
+        });
+
+        bf.chain.emit(makeOutput());
+      });
+
+    },this.ns);
+
+    this.ns.addRule('ns',(v,d){
+      if(!d.hasMix(v)) return null;
+      var mn = {},mix = d.getMix(v), 
+      key = mix['@key'];
+      mix.forEach((k,v){
+        if(k == '@key') return;
+        mn[[key,':',k].join('')] = v;
+      });
+      return mn;
+    });
+
+    this.ns.mix('svg',{
+        'xmlns':'http://www.w3.org/2000/svg',
+        'version': '1.1',
+        'preserveAspectRatio': "none",
+    });
+
+    this.ns.mixFn('viewbox',(x,y,w,h){
+      return {
+        "viewBox": "$x $y $w $h"
+      };
+    });
+
+    this.ns.mixFn('Svg',(w,h,[vx,vy,vw,vh]){
+       var vb = {};
+       if(Valids.exist(vx) || Valids.exist(vy) || Valids.exist(vw) || Valids.exist(vh)) 
+          vb = this.ns.fn('viewbox',[vx,vy,vw,vh]);
+       return {
+         "@mix":'svg',
+         "@include": vb,
+          "width":'100%',
+          "height":'100%'
+       };
+    });
+
+  }
+
+  void svg(num w,num h,Map m){
+      this.ns.sel('svg',this.ns.fn('Svg',[w,h,0,0,w,h]));
+      this.ns.updateSel('svg',m);
+  }
 }
 
 class Bass{
