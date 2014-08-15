@@ -112,7 +112,7 @@ class StyleSet{
 
         dynamic clone(){
             var a = StyleSet.create();
-            a.styles.updateAll(this.rules);
+            a.styles.updateAll(this.styles);
             return a;
         }
 }
@@ -231,7 +231,8 @@ class BassNS{
 		});
 
 	}
-
+        
+        void clear() => this.styles.destroy();
         dynamic get rules => this.extensions;
         dynamic get addRule => this.extensions.rule;
         dynamic get addSelector => this.seltypes.addRule;
@@ -370,7 +371,8 @@ class BassNS{
                 if(!this._dirty && Valids.exist(this._cached)) return m(new Map.from(this._cached));
 		var f,rule;
                 var scanned = MapDecorator.create();
-		Enums.eachAsync(this.styles.styles.core,(e,i,o,fn){
+                var std = this.styles.clone();
+		Enums.eachAsync(std.styles.core,(e,i,o,fn){
                   scanned.update(i,{});
                   f = scanned.get(i);
                   this._processRules(e.maps,f);
@@ -415,10 +417,32 @@ class BassNS{
 }
 
 class BassUtil{
-		static RegExp rules = new RegExp(r'^@([\w\W]+)');
-		static RegExp varrule = new RegExp(r'^#([\w\W]+)');
-		static RegExp escapeSeq = new RegExp(r'([\t|\n]+)');
-		static RegExp validkeys = new RegExp(r'^([^\w\d&]+)$|^&$');
+  static RegExp rules = new RegExp(r'^@([\w\W]+)');
+  static RegExp varrule = new RegExp(r'^#([\w\W]+)');
+  static RegExp escapeSeq = new RegExp(r'([\t|\n]+)');
+  static RegExp validkeys = new RegExp(r'^([^\w\d&]+)$|^&$');
+
+  static final RegExp ntag = new RegExp(r'([\w\W]+)#([\d]+)');
+  static final RegExp attrReg = new RegExp(r'#attr');
+  static final RegExp contentReg = new RegExp(r'#content');
+  static final RegExp textReg = new RegExp(r'#textContent');
+  static final RegExp singleSpace = new RegExp(r'\s');
+  static final RegExp multipleSpace = new RegExp(r'\s+');
+
+  static String makeTag(String t){
+    return "<$t #attr>"+"#textContent\t"+'#content'+"</$t>";
+  }
+
+  static String mapAttr(Map m,[List ex]){
+    var buffer = new StringBuffer();
+    m.forEach((k,v){
+      if(ex.contains(k)) return null;
+      buffer.write(' ');
+      buffer.write("$k=${Funcs.doubleQuote(v)}");
+      buffer.write(' ');
+    });
+    return buffer.toString();
+  }
 }
 
 class BassFormatter{
@@ -469,6 +493,9 @@ class TypeAbstract{
     this.ns = Valids.exist(n) ? n : BassNS.create('cssProc',Bass.R.clone());
   }
 
+  void clear() => this.ns.clear();
+  void sel(String k,Map m) => this.ns.sel(k,m);
+  void update(String k,Map m) => this.ns.updateSel(k,m);
   void compile() => this.ns.compile();
   void bind(Function n) => this.f.bind(n);
   void bindOnce(Function n) => this.f.bindOnce(n);
@@ -515,34 +542,11 @@ class CSS extends TypeAbstract{
   }
 }
 
-class SvgUtil{
-
-  static RegExp ntag = new RegExp(r'([\w\W]+)#([\d]+)');
-  static RegExp attrReg = new RegExp(r'#attr');
-  static RegExp contentReg = new RegExp(r'#content');
-  static RegExp singleSpace = new RegExp(r'\s');
-  static RegExp multipleSpace = new RegExp(r'\s+');
-
-  static String makeTag(String t){
-    return "<$t #attr>"+'#content'+"</$t>";
-  }
-
-  static String mapAttr(Map m){
-    var buffer = new StringBuffer();
-    m.forEach((k,v){
-      buffer.write(' ');
-      buffer.write("$k=${Funcs.doubleQuote(v)}");
-      buffer.write(' ');
-    });
-    return buffer.toString();
-  }
-}
-
-class SVG extends TypeAbstract{
+class MarkUp extends TypeAbstract{
   BassFormatter f;
 
-  static create([n]) => new SVG(n);
-  SVG([ns]):super(ns){
+  static create([n]) => new MarkUp(n);
+  MarkUp([ns]):super(ns){
 
     var tree = MapDecorator.create();
     var build = MapDecorator.create();
@@ -552,37 +556,45 @@ class SVG extends TypeAbstract{
 
     var makeOutput = (){
         return {
-          'buffer': srcbuffer.toString(),
-          'map': new Map.from(srcMap)
+          'markup': srcbuffer.toString(),
+          'tree': new Map.from(srcMap)
         };
     };
 
-    var processor = (key,tag,tree){
-        var g,attr;
-        if(SvgUtil.ntag.hasMatch(tag)){
-          g = SvgUtil.ntag.allMatches(tag);
-          g.forEach((f) => tag = tag.replaceAll(SvgUtil.ntag,f.group(1)));
+    var processor = (key,tag,tree,List ex){
+        var g,attr,text='';
+        if(BassUtil.ntag.hasMatch(tag)){
+          g = BassUtil.ntag.allMatches(tag);
+          g.forEach((f) => tag = tag.replaceAll(BassUtil.ntag,f.group(1)));
         }
 
-        attr = SvgUtil.mapAttr(tree);
-        return SvgUtil.makeTag(tag).
-          replaceAll(SvgUtil.attrReg,attr).
-          replaceAll(SvgUtil.contentReg,"#{$key}");
+        if(tree.containsKey('text')){
+          text = Funcs.prettyPrint(tree['text']);
+        }
+
+        ex.add('text');
+        attr = BassUtil.mapAttr(tree,ex);
+
+        return BassUtil.makeTag(tag).
+          replaceAll(BassUtil.textReg,text).
+          replaceAll(BassUtil.attrReg,attr).
+          replaceAll(BassUtil.contentReg,"#{$key}");
     };
 
-    var patcher = (tree,val){
+    var patcher = (tree,val,List ex){
         var key = tree.join(' ');
         var child = Enums.yankLast(tree);
-        return processor(key,child,val);
+        return processor(key,child,val,ex);
     };
 
-    var combinator = (item,trees,done,vals){
+    var combinator = (item,trees,done,vals,[List m]){
+        m = Funcs.switchUnless(m,[]);
         var spl,child,parent,res;
-        spl = item.split(SvgUtil.singleSpace);
-        child = patcher(spl,trees.get(item));
+        spl = item.split(BassUtil.singleSpace);
+        child = patcher(spl,trees.get(item),m);
         if(!spl.isEmpty){
           var key = spl.join(' ');
-          var data = patcher(spl,trees.get(key));
+          var data = patcher(spl,trees.get(key),m);
           done.get(key).add(item);
           vals.update(key,data);
         }
@@ -616,6 +628,7 @@ class SVG extends TypeAbstract{
           var bd = build.get(cur);
           var rv = [''];
 
+
           if(bd.isEmpty){
             build.destroy(cur);
             vals.update(cur,vals.get(cur).replaceAll("#{$cur}",rv.join('\n')));
@@ -625,6 +638,7 @@ class SVG extends TypeAbstract{
           bd.forEach((f){ 
             rv.add(vals.get(f)); 
           });
+
           var patch = val.replaceAll("#{$cur}",rv.join('\n'));
           vals.update(cur,patch);
           build.destroy(cur);
@@ -652,36 +666,41 @@ class SVG extends TypeAbstract{
       return mn;
     });
 
-    this.ns.mix('svg',{
-        'xmlns':'http://www.w3.org/2000/svg',
-        'version': '1.1',
-        'preserveAspectRatio': "none",
-    });
+  }
 
-    this.ns.mixFn('viewbox',(x,y,w,h){
-      return {
-        "viewBox": "$x $y $w $h"
-      };
-    });
+}
 
-    this.ns.mixFn('Svg',(w,h,[vx,vy,vw,vh]){
-       var vb = {};
-       if(Valids.exist(vx) || Valids.exist(vy) || Valids.exist(vw) || Valids.exist(vh)) 
-          vb = this.ns.fn('viewbox',[vx,vy,vw,vh]);
-       return {
-         "@mix":'svg',
-         "@include": vb,
-          "width":'100%',
-          "height":'100%'
-       };
-    });
+class SVG extends MarkUp{
+  static create([n]) => new SVG(n);
+  SVG([ns]): super(ns){
+      this.ns.mix('svg',{
+          'xmlns':'http://www.w3.org/2000/svg',
+          'version': '1.1',
+          'preserveAspectRatio': "none",
+      });
+
+      this.ns.mixFn('viewbox',(x,y,w,h){
+        return {
+          "viewBox": "$x $y $w $h"
+        };
+      });
 
   }
 
-  void svg(num w,num h,Map m){
-      this.ns.sel('svg',this.ns.fn('Svg',[w,h,0,0,w,h]));
-      this.ns.updateSel('svg',m);
+  void svg(Map m){
+    this.ns.sel('svg',{
+       "@mix":'svg',
+       "@include": vb,
+        "width":'100%',
+        "height":'100%'
+    });
+    this.ns.updateSel('svg',m);
   }
+}
+
+class HTML extends MarkUp{
+  static create([n]) => new HTML(n);
+  HTML([ns]): super(ns);
 }
 
 class Bass{

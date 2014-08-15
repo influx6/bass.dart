@@ -12,6 +12,7 @@ void main(){
         box.ns.sel('svg',{
           'id':'bigger',
           'width':'200px',
+          'text':"wonder pulll lost ster",
           '@ns':{
             '@key':'attr',
             'rocker':'domid',
