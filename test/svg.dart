@@ -53,4 +53,5 @@ void main(){
         });
 
        box.compile();
+       box.destroy();
 }

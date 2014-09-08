@@ -82,4 +82,6 @@ void main(){
 
 	box.ns.compile();
 	box.ns.compile();
+
+        box.destroy();
 }

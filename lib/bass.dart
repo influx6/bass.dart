@@ -244,7 +244,7 @@ class BassNS{
 		this.varbars.clear();
 		this.scanned.clear();
 		this.strictKeys.close();
-		this.procDist.destroy();
+		this.procDist.free();
 		this.seltypes.destroy();
 		this.extensions.destroy();
 		this.mixstyles.destroy();
