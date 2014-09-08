@@ -482,6 +482,9 @@ class BassFormatter{
 	void bindWhenDone(Function n) => this.chain.whenDone(n);
 	void unbindWhenDone(Function n) => this.chain.offWhenDone(n);
 	void clearListeners() => this.chain.free();
+        void destroy(){
+          this.clearListeners();
+        }
 
 }
 
@@ -489,7 +492,7 @@ class TypeAbstract{
   BassFormatter f;
   BassNS ns;
 
-  TypeAbstract(n){
+  TypeAbstract([n]){
     this.ns = Valids.exist(n) ? n : BassNS.create('cssProc',Bass.R.clone());
   }
 
@@ -504,6 +507,11 @@ class TypeAbstract{
   void bindWhenDone(Function n) => this.f.bindWhenDone(n);
   void unbindWhenDone(Function n) => this.f.unbindWhenDone(n);
   void clearListeners() => this.f.clearListeners();
+  void destroy(){
+    this.ns.destroy();
+    this.clearListeners();
+    this.clear();
+  }
 }
 
 class CSS extends TypeAbstract{
