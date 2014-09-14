@@ -57,7 +57,6 @@ void main(){
 	});
 
 	box.f.bind(Funcs.tag('scanMap:'));
-
 	box.ns.compile();
         
 	
@@ -80,7 +79,7 @@ void main(){
               }
 	});
 
-	box.ns.compile();
+        print('\n');
 	box.ns.compile();
 
         box.destroy();

@@ -11,7 +11,7 @@ class Rule{
 
 	Map process(dynamic n,BassNS b) => this.ruleProcessor(n,b);
 	void destroy(){
-		this.method = this.ruleProcessor = null;
+            this.method = this.ruleProcessor = null;
 	}
 }
 
@@ -21,7 +21,7 @@ class RuleSet{
 	static create() => new RuleSet();
 
 	RuleSet(){
-		this.rules = MapDecorator.create();
+          this.rules = MapDecorator.create();
 	}
 
 	bool hasRule(String n) => this.rules.has(n);
@@ -50,15 +50,35 @@ class RuleSet{
 }
 
 class Style{
+        final Distributor newView = Distributor.create('newView');
 	String selector;
-	MapDecorator rules;
+	AtomicMap rules;
+	AtomicMap view;
 	Map maps;
 
 	static create(s,m) => new Style(s,m);
 	Style(this.selector,this.maps){
-		this.rules = new MapDecorator.use(this.maps);
+          this.rules = new AtomicMap.use(this.maps);
+          this.view = AtomicMap.create();
 	}
     
+        void updateView(Map m){
+          m.forEach((f,k){
+              this.view.update(f,k);
+          });
+          this.newView.emit(this.view.clone);
+        }
+
+        dynamic get onAdd => this.view.onAdd;
+        dynamic get onRemove => this.view.onRemove;
+        dynamic get onUpdate => this.view.onUpdate;
+        dynamic get onKeyUpdate => this.view.onKeyUpdate;
+
+        dynamic get onRuleAdd => this.rules.onAdd;
+        dynamic get onRuleRemove => this.rules.onRemove;
+        dynamic get onRuleUpdate => this.rules.onUpdate;
+        dynamic get onRuleKeyUpdate => this.rules.onKeyUpdate;
+
 	void destroy(){
 		this.selector = null;
 		this.rules.clear();
@@ -67,31 +87,31 @@ class Style{
 }
 
 class StyleSet{
-	MapDecorator styles;
+	AtomicMap styles;
 
 	static create() => new StyleSet();
 
 	StyleSet(){
-		this.styles = MapDecorator.create();
+            this.styles = AtomicMap.create();
 	}
 
 	void style(String n,Map m){
-              if(this.styles.has(n)){
-                var fc = this.styles.get(n);
-                m.forEach((k,v){
-                  if(BassUtil.rules.hasMatch(k)){
-                    var fx = fc.rules.get(k);
-                    if(Valids.notExist(fx)) return fc.rules.update(k,v);
-                    var mx = fx.split(',');
-                    mx.addAll(v.split(','));
-                    fc.rules.update(k,mx.join(','));
-                  }else{
-                    fc.rules.update(k,v);
-                  }
-                });
-                return null;
+          if(this.styles.has(n)){
+            var fc = this.styles.get(n);
+            m.forEach((k,v){
+              if(BassUtil.rules.hasMatch(k)){
+                var fx = fc.rules.get(k);
+                if(Valids.notExist(fx)) return fc.rules.update(k,v);
+                var mx = fx.split(',');
+                mx.addAll(v.split(','));
+                fc.rules.update(k,mx.join(','));
+              }else{
+                fc.rules.update(k,v);
               }
-              return this.styles.update(n,Style.create(n,m));
+            });
+            return null;
+          }
+          return this.styles.update(n,Style.create(n,m));
 	}
 
 
@@ -101,13 +121,13 @@ class StyleSet{
 	dynamic getMaps(String n) => this.hasStyle(n) ? this.styles.get(n).maps : null;
 
 	void remove(String n){
-		if(!this.styles.has(n)) return null;
-		this.styles(n).clear();
+          if(!this.styles.has(n)) return null;
+          this.styles(n).clear();
 	}
 
 	void destroy(){
-		this.styles.onAll((k,v) => v.destroy());
-		this.styles.clear();
+          this.styles.onAll((k,v) => v.destroy());
+          this.styles.clear();
 	}
 
         dynamic clone(){
@@ -241,15 +261,15 @@ class BassNS{
         dynamic getMix(String n) => this.mixstyles.getMaps(n);
 
 	void destroy(){
-		this.varbars.clear();
-		this.scanned.clear();
-		this.strictKeys.close();
-		this.procDist.free();
-		this.seltypes.destroy();
-		this.extensions.destroy();
-		this.mixstyles.destroy();
-		this.styles.destroy();
-		this.ns = null;
+          this.varbars.clear();
+          this.scanned.clear();
+          this.strictKeys.close();
+          this.procDist.free();
+          this.seltypes.destroy();
+          this.extensions.destroy();
+          this.mixstyles.destroy();
+          this.styles.destroy();
+          this.ns = null;
 	}
 
 	Style retrieveStyle(String selector) => this.styles.get(selector);
@@ -259,12 +279,12 @@ class BassNS{
 		if(!this.styles.hasStyle(selector)) return this.sel(selector,rules);
 		var tmp = StyleSet.create();
 		this.styleSelector(tmp,selector,rules,(s,c){
-			s.styles.onAll((k,v){
-				/*if(this.styles.hasStyle(k)) */
-				/*	return this.styles.get(k).rules.updateAll(v.rules);*/
-                                this.styles.style(k,v.maps);
-			});
-			tmp.destroy();
+                    s.styles.onAll((k,v){
+                        /*if(this.styles.hasStyle(k)) */
+                        /*	return this.styles.get(k).rules.updateAll(v.rules);*/
+                        this.styles.style(k,v.maps);
+                    });
+                    tmp.destroy();
 		});
 	}
 
@@ -310,7 +330,7 @@ class BassNS{
 	void unbindWhenDone(Function n) => this.procDist.offWhenDone(n);
 	void clearListeners() => this.procDist.free();
         
-        void _processRules(Map n,Map f){
+        void _processRules(Map n,Map f,[Function ender]){
             var rule;
             n.forEach((k,v){
               v = v.toString().replaceAll(BassUtil.escapeSeq,' ');
@@ -318,6 +338,7 @@ class BassNS{
               rule = BassUtil.rules.firstMatch(k).group(1);
               if(!this.extensions.hasRule(rule)) return null;
               var res = Funcs.switchUnless(this.extensions.get(rule).process(v,this),{});
+              if(Valids.exist(ender)) ender(res);
               return  f.addAll(res);
             });
         }
@@ -375,7 +396,11 @@ class BassNS{
 		Enums.eachAsync(std.styles.core,(e,i,o,fn){
                   scanned.update(i,{});
                   f = scanned.get(i);
-                  this._processRules(e.maps,f);
+                  this._processRules(e.maps,f,(res){
+                    var styles = this.styles.get(i);
+                    if(Valids.notExist(styles)) return null;
+                    styles.updateView(res);
+                  });
                   fn(null);
 		},(_,err){
                     if(Valids.exist(err)) throw err;
@@ -417,6 +442,12 @@ class BassNS{
 }
 
 class BassUtil{
+
+  static Map specialTags = {
+    'img':"<img #attr />",
+    'hr':"</hr>",
+  };
+
   static RegExp rules = new RegExp(r'^@([\w\W]+)');
   static RegExp varrule = new RegExp(r'^#([\w\W]+)');
   static RegExp escapeSeq = new RegExp(r'([\t|\n]+)');
@@ -430,7 +461,9 @@ class BassUtil{
   static final RegExp multipleSpace = new RegExp(r'\s+');
 
   static String makeTag(String t){
-    return "<$t #attr>"+"#textContent\t"+'#content'+"</$t>";
+    if(BassUtil.specialTags.containsKey(t.toLowerCase())) 
+      return BassUtil.specialTags[t.toLoweCase()];
+    return "<$t #attr>"+"\n#textContent"+'\n#content'+"\n</$t>";
   }
 
   static String mapAttr(Map m,[List ex]){
@@ -496,6 +529,7 @@ class TypeAbstract{
     this.ns = Valids.exist(n) ? n : BassNS.create('cssProc',Bass.R.clone());
   }
 
+  dynamic getStyle(String s) => this.ns.retrieveStyle(s);
   void clear() => this.ns.clear();
   void sel(String k,Map m) => this.ns.sel(k,m);
   void update(String k,Map m) => this.ns.updateSel(k,m);
@@ -553,6 +587,8 @@ class CSS extends TypeAbstract{
 class MarkUp extends TypeAbstract{
   BassFormatter f;
 
+  static RegExp firstQuote = new RegExp(r'^"');
+  static RegExp endQuote = new RegExp(r'"$');
   static create([n]) => new MarkUp(n);
   MarkUp([ns]):super(ns){
 
@@ -577,7 +613,9 @@ class MarkUp extends TypeAbstract{
         }
 
         if(tree.containsKey('text')){
-          text = Funcs.prettyPrint(tree['text']);
+          text = Funcs.prettyPrint(tree['text'])
+            .replaceAll(MarkUp.firstQuote,' ')
+            .replaceAll(MarkUp.endQuote,' ');
         }
 
         ex.add('text');
