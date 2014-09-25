@@ -349,8 +349,11 @@ class BassNS{
               if(m.containsKey(attach)) return fn(attach);
               return fn(null);
           },(_,err){
-             if(Valids.exist(err)) return (Valids.exist(s) && s(m,err));
-             return (Valids.exist(f) && f(m,err));
+             if(Valids.exist(err)){
+               if(Valids.exist(s)) return s(m,err);
+                return null;
+             }
+             if(Valids.exist(f)) f(m,err);
           });
         }
 
